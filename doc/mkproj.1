@@ -1,0 +1,140 @@
+.TH MKPROJ 1 "2021 October 28" "Make a Project"
+
+.SH NAME
+mkproj - make and set up projects
+
+.SH SYNOPSIS
+.B mkproj
+[
+.I OPTIONS
+]...
+.I PROJECT
+
+.SH DESCRIPTION
+.B mkproj
+is a very simple project automation tool that helps with
+the creation of projects using TARGETS.
+
+When a PROJECT is created, its files should be placed at
+.IR 'ROOT/USER/PROJECT'.
+See ENVIRONMENT VARIABLES for more details about ROOT and USER.
+
+TARGETS are directories containing files and scripts to set up a given
+project structure. They reside inside a directory located at
+.IR '$XDG_CONFIG_HOME/mkproj/target.d'
+or, if $XDG_CONFIG_HOME not set,
+.IR '$HOME/.config/mkproj/target.d'.
+See CREATING TARGETS for more information.
+
+You should note that if you attempt to create a new project, and there is
+already a directory at that location,
+.B mkproj
+will warn you about it, and it will ask if you would like to proceed.
+Depending on the target, files may be overwritten or even deleted, so
+reassure yourself of what you are doing and proceed with caution.
+
+.SH OPTIONS
+
+.TP
+.BR \-h
+Shows basic usage and exits.
+.TP
+.BR \-v
+Be verbose.
+.TP
+.BR \-c
+Creates the project using $(pwd)/PROJECT instead of ROOT/USER/PROJECT.
+.TP
+.BR \-e\ FILE
+Opens a FILE from project with $EDITOR. The FILE path is relative to the root of the project.
+.TP
+.BR \-r\ ROOT
+Sets or overrides value defined in MKPROJ_ROOT environment variable.
+.TP
+.BR \-u\ USER
+Sets or overrides value defined in MKPROJ_USER environment variable.
+.TP
+.BR \-t\ TARGET
+Sets or overrides value defined in MKPROJ_TARGET environment variable.
+
+.SH ENVIRONMENT VARIABLES
+
+.TP
+.I MKPROJ_ROOT
+Sets the ROOT directory that will contain directories for each USER.
+The default value for ROOT is '$HOME/Repositories'
+.TP
+.I MKPROJ_USER
+Sets the USER directory that will contain directories for each PROJECT.
+The default value for USER is the name of the current user
+.TP
+.I MKPROJ_TARGET
+Sets the default project TARGET.
+.TP
+.I EDITOR
+Sets the default editor used by
+.B mkproj.
+
+.SH CREATING TARGETS
+
+Creating a target is pretty simple. Every target needs to have a file
+named 'target.sh'.
+
+This file will contain a few things, one of them being the target information
+inside a comment. For example:
+
+.EX
+# Target: Foo
+# Author: Bar
+# Version: v0.1.0
+# License: FooBar License
+# Description: This is a description which contains important information about the target.
+.EE
+
+These comments will be used in the future for target management,
+therefore, don't add line breaks.
+
+Also inside this file, there should be a function named target_main.
+This function should do all the setup required to create a
+project structure for a given TARGET.
+
+.EX
+target_main () {
+    # Setting up things
+}
+.EE
+
+Note you should not call exit inside target_main, since
+.B mkproj
+may want to do some other stuff after target_main returns.
+
+A small set of functions are defined to be used by 'target.sh', they are:
+
+.TP
+.I target_echo [ ARGS ]...
+Display a line of text. Should be used instead of echo.
+
+.TP
+.I target_get [ KEY ]
+Get information about the environment.
+Valid arguments for this function are:
+
+source - get the path to the directory which contain all the target files
+
+src - alias for source
+
+destination - get the path to the directory where the project is located
+
+dest - alias for destination
+
+name - get the project name
+
+user - get the user of the current project being created
+
+.TP
+Remember, you can still use normal shell commands, but do not use mkproj's internal variables, instead use target_get to get any environment information.
+
+
+.SH EXIT STATUS
+
+In summary, non-zero exit statuses represent some kind of error.

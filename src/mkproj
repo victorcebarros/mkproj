@@ -1,0 +1,262 @@
+#!/bin/sh
+
+__script_name="$0"
+
+__usage () {
+    echo  "usage: $__script_name [OPTIONS]... PROJECT"
+    echo
+    echo "  description:"
+    echo "    Create and manage projects."
+    echo
+    echo "    Projects are organized as the following schema:"
+    echo
+    echo "    ROOT"
+    echo "       |- USER"
+    echo "             |- CoolProjectName"
+    echo "             |- ..."
+    echo "       |- ..."
+    echo
+    echo "    You may want to override this by passing the -c flag."
+    echo "    It will place a new directory for the project at the current"
+    echo "    location. If a file already exists, it will fail."
+    echo
+    echo "  options:"
+    echo "    -h         shows help and exits"
+    echo "    -v         be verbose"
+    echo
+    echo "    -c         creates the project at the current location"
+    echo
+    echo "    -e FILE    opens FILE from project with \$EDITOR"
+    echo
+    echo "    -r ROOT    sets or overrides MKPROJ_ROOT"
+    echo "    -u USER    sets or overrides MKPROJ_USER"
+    echo "    -t TARGET  sets or overrides MKPROJ_TARGET"
+
+    exit 1
+}
+
+__echo () {
+    flag="$1"
+    message="$2"
+    echo "[$flag] $message"
+}
+
+__error_echo () {
+    message="$1"
+    __echo "EE" "$message" >&2
+}
+
+__verbose_echo () {
+    message="$1"
+    [ -n "$__verbose" ] && __echo "--" "$message"
+}
+
+__warn_echo () {
+    message="$1"
+    __echo "WW" "$message"
+}
+
+__die () {
+    message="$1"
+    __error_echo "$message"
+    exit 1
+}
+
+__create_or_edit_file () {
+    fullpath="$1"
+    dirpath=$(dirname "$fullpath")
+    filename=$(basename "$fullpath")
+
+    if [ -z "$EDITOR" ]; then
+        __die "\$EDITOR variable has not been set"
+    fi
+
+    mkdir -p "$dirpath"
+    $EDITOR "$fullpath"
+}
+
+__project_root_dir=${MKPROJ_ROOT:-$HOME/Repositories}
+__project_user_dir=${MKPROJ_USER:-$(id -un)}
+__project_name=
+__project_edit_file=
+__project_target_name=${MKPROJ_TARGET:-}
+
+# Path for the project using default root/user/project schema.
+# If -c is passed, will be set to "$(pwd)/$__project_name".
+__project_path=
+
+__verbose=
+
+# Path to targets
+__target_root_dir=
+
+if [ -n "$XDG_CONFIG_HOME" ]; then
+    __target_root_dir="$XDG_CONFIG_HOME/mkproj/target.d"
+else
+    __target_root_dir="$HOME/.config/mkproj/target.d"
+fi
+
+if [ ! -e "$__target_root_dir" ]; then
+    __verbose_echo "Creating target.d at $__target_root_dir"
+    if ! mkproj -p "$__target_root_dir"; then
+        __die "Could not create $__target_root_dir"
+    fi
+else
+    if [ ! -d "$__target_root_dir" ]; then
+        __die "target.d is not a directory"
+    fi
+    __verbose_echo "Found target.d at $__target_root_dir"
+fi
+
+while getopts ":hvcr:u:t:e:" option
+do
+    case "$option" in
+        h) __usage ;;
+        v) __verbose=1 ;;
+        c) __project_path="$(pwd)" ;;
+        r) __project_root_dir="$OPTARG" ;;
+        u) __project_user_dir="$OPTARG" ;;
+        t) __project_target_name="$OPTARG" ;;
+        e) __project_edit_file="$OPTARG" ;;
+        *) __die "invaid option -- $OPTARG"
+            ;;
+    esac
+done
+
+shift $(( OPTIND - 1 ))
+
+__project_name="$1"
+
+if [ -z "$__project_path" ]; then
+    [ -z "$__project_root_dir" ] && __die "Project Root directory has not been set"
+    [ -z "$__project_user_dir" ] && __die "Project User directory has not been set"
+
+    __project_path="$__project_root_dir/$__project_user_dir"
+fi
+
+if [ -z "$__project_name" ]; then
+    __die "Project name can't be empty!"
+fi
+
+if [ -z "$__project_target_name" ]; then
+    __die "Target needs to be set!"
+fi
+
+# We append the project name
+__project_path="$__project_path/$__project_name"
+
+__verbose_echo "Project Information:"
+__verbose_echo "    root:   $__project_root_dir"
+__verbose_echo "    user:   $__project_user_dir"
+__verbose_echo "    name:   $__project_name"
+__verbose_echo "    target: $__project_target_name"
+if [ -n "$__project_edit_file" ]; then
+    __verbose_echo "    file:   $__project_edit_file"
+fi
+
+if [ -d "$__project_path" ]; then
+    __warn_echo "A directory already exists at $__project_path"
+    if [ -n "$__project_edit_file" ]; then
+        action=""
+        fullpath="$__project_path/$__project_edit_file"
+        filename=$(basename "$fullpath")
+
+        if [ -f "$fullpath" ]; then
+            action="edit"
+        elif [ ! -e "$fullpath" ]; then
+            action="create"
+        else
+            __die "Can't edit $filename, it is not a regular file"
+        fi
+
+        printf "Would you like to %s file %s? [y/N] " "$action" "$filename"
+        # shellcheck disable=SC2162
+        read reply
+        case "$reply" in
+            y|Y) __create_or_edit_file "$fullpath" ;;
+        esac
+        exit 0
+    fi
+
+    __warn_echo "Files inside this directory may be overwritten"
+    __warn_echo "by the target script, it is not recomended to proceed."
+
+    printf "Would you like to proceed creating the project? [y/N] "
+    # shellcheck disable=SC2162
+    read reply
+
+    case "$reply" in
+        y|Y) ;;
+        *) __die "Alright, exiting..." ;;
+    esac
+
+elif [ -f "$__project_path" ]; then
+    __die "A file already exists at $__project_path"
+fi
+
+if ! mkdir -p "$__project_path"; then
+    __verbose_echo "You may want to check the permissions for $__project_path"
+    __die "There was a problem while creating $__project_path"
+fi
+
+__target_path="$__target_root_dir/$__project_target_name"
+__target_script="$__target_path/target.sh"
+
+if [ ! -d "$__target_path" ]; then
+    __die "$__project_name is not a valid target"
+fi
+
+__verbose_echo "Found target at $__target_path"
+
+if [ ! -e "$__target_script" ]; then
+    __die "target.sh is missing from the target $__project_target_name"
+elif [ ! -f "$__target_script" ]; then
+    __die "target.sh for $__project_target_name is not a proper script"
+fi
+
+__verbose_echo "Found target.sh at $__target_script"
+
+# Helper functions to be used by target.sh
+target_echo () {
+    message="$*"
+    __echo "$__project_target_name" "$message"
+}
+
+target_get () {
+    key="$1"
+    value=""
+
+    case "$key" in
+        source|src) value="$__target_root_dir/$__project_target_name" ;;
+        destination|dest) value="$__project_path" ;;
+        name) value="$__project_name" ;;
+        user) value="$__project_user_dir" ;;
+    esac
+
+    echo "$value"
+}
+
+__verbose_echo "Sourcing target.sh"
+
+# We source the script here
+# shellcheck disable=1090
+if ! . "$__target_script"; then
+    __die "Could not source target.sh"
+fi
+
+__verbose_echo "Successfully sourced target.sh"
+
+# We verify if the script contain the target_main funciton defined
+if [ -z "$(command -v target_main 2> /dev/null)" ]; then
+    __die "target.sh for $__project_target_name doesn't define the target_main function"
+fi
+
+__verbose_echo "target_main() is ready to be called"
+
+target_main
+
+if [ -n "$__project_edit_file" ]; then
+    __create_or_edit_file "$__project_path/$__project_edit_file"
+fi
+
+__verbose_echo "Done!"
