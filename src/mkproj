@@ -98,7 +98,7 @@ fi
 
 if [ ! -e "$__target_root_dir" ]; then
     __verbose_echo "Creating target.d at $__target_root_dir"
-    if ! mkproj -p "$__target_root_dir"; then
+    if ! mkdir -p "$__target_root_dir"; then
         __die "Could not create $__target_root_dir"
     fi
 else
