@@ -1,4 +1,4 @@
-# mkproj v0.1.0
+# mkproj v0.1.1
 
 mkproj is a simple command line program that automates the process of setting up projects.
 
