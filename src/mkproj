@@ -3,34 +3,36 @@
 __script_name="$0"
 
 __usage () {
-    echo  "usage: $__script_name [OPTIONS]... PROJECT"
-    echo
-    echo "  description:"
-    echo "    Create and manage projects."
-    echo
-    echo "    Projects are organized as the following schema:"
-    echo
-    echo "    ROOT"
-    echo "       |- USER"
-    echo "             |- CoolProjectName"
-    echo "             |- ..."
-    echo "       |- ..."
-    echo
-    echo "    You may want to override this by passing the -c flag."
-    echo "    It will place a new directory for the project at the current"
-    echo "    location. If a file already exists, it will fail."
-    echo
-    echo "  options:"
-    echo "    -h         shows help and exits"
-    echo "    -v         be verbose"
-    echo
-    echo "    -c         creates the project at the current location"
-    echo
-    echo "    -e FILE    opens FILE from project with \$EDITOR"
-    echo
-    echo "    -r ROOT    sets or overrides MKPROJ_ROOT"
-    echo "    -u USER    sets or overrides MKPROJ_USER"
-    echo "    -t TARGET  sets or overrides MKPROJ_TARGET"
+    cat << EOF
+usage: $__script_name [OPTIONS]... PROJECT
+
+  description:
+    Create and manage projects.
+
+    Projects are organized as the following schema:
+
+    ROOT
+       |- USER
+             |- CoolProjectName
+             |- ...
+       |- ...
+
+    You may want to override this by passing the -c flag.
+    It will place a new directory for the project at the current
+    location. If a file already exists, it will fail.
+
+  options:
+    -h         shows help and exits
+    -v         be verbose
+
+    -c         creates the project at the current location
+
+    -e FILE    opens FILE from project with \$EDITOR
+
+    -r ROOT    sets or overrides MKPROJ_ROOT
+    -u USER    sets or overrides MKPROJ_USER
+    -t TARGET  sets or overrides MKPROJ_TARGET
+EOF
 
     exit 1
 }
